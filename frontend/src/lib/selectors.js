@@ -116,6 +116,27 @@ export function reconciliationLedger(doc, ref = today()) {
   })
 }
 
+// Cycles starting within `lookahead` days from `ref` (inclusive of today).
+export function upcomingCycleStarts(doc, lookahead = 5, ref = today()) {
+  const cutoff = new Date(ref.getTime() + lookahead * DAY_MS)
+  const rows = []
+  for (const c of doc.campaigns || []) {
+    for (const cyc of c.cycles || []) {
+      const start = parseDate(cyc.period_start)
+      if (!start) continue
+      if (start >= ref && start <= cutoff) {
+        rows.push({
+          campaign: c,
+          card: cardLabel(doc.cards, c.associated_card_id),
+          cycle: cyc,
+          daysUntilStart: Math.floor((start - ref) / DAY_MS),
+        })
+      }
+    }
+  }
+  return rows.sort((a, b) => a.daysUntilStart - b.daysUntilStart)
+}
+
 // Portfolio totals for the header summary.
 export function portfolioTotals(doc) {
   return (doc.campaigns || []).reduce(

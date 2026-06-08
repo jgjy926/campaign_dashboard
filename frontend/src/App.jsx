@@ -7,6 +7,7 @@ import ActiveCampaigns from './components/ActiveCampaigns'
 import UpcomingCountdown from './components/UpcomingCountdown'
 import NextBestCard from './components/NextBestCard'
 import ReconciliationLedger from './components/ReconciliationLedger'
+import UpcomingCycleStarts from './components/UpcomingCycleStarts'
 import CardManager from './components/CardManager'
 import CampaignForm from './components/CampaignForm'
 import CampaignDetail from './components/CampaignDetail'
@@ -70,6 +71,7 @@ export default function App() {
             <ReconciliationLedger doc={doc} />
           </div>
           <div className="space-y-4">
+            <UpcomingCycleStarts />
             <UpcomingCountdown doc={doc} />
             <div className="h-[28rem]">
               <AskPanel />

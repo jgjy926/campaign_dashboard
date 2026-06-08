@@ -22,6 +22,8 @@ export default function SpendTracker({ campaign }) {
         <thead className="border-b border-slate-200 text-slate-500">
           <tr>
             <th className="py-1 pr-2">Month</th>
+            <th className="py-1 pr-2">Start</th>
+            <th className="py-1 pr-2">End</th>
             <th className="py-1 pr-2">Spend</th>
             <th className="py-1 pr-2">Expected cashback</th>
             <th className="py-1 pr-2">Received?</th>
@@ -33,6 +35,26 @@ export default function SpendTracker({ campaign }) {
           {(campaign.cycles || []).map((cy) => (
             <tr key={cy.cycle_id} className="border-b border-slate-100">
               <td className="py-1 pr-2 font-medium text-slate-700">{cy.label}</td>
+              <td className="py-1 pr-2">
+                <input
+                  type="date"
+                  value={cy.period_start || ''}
+                  onChange={(e) =>
+                    updateCycle(campaign.campaign_id, cy.cycle_id, { period_start: e.target.value })
+                  }
+                  className="rounded border border-slate-300 px-2 py-1 text-xs"
+                />
+              </td>
+              <td className="py-1 pr-2">
+                <input
+                  type="date"
+                  value={cy.period_end || ''}
+                  onChange={(e) =>
+                    updateCycle(campaign.campaign_id, cy.cycle_id, { period_end: e.target.value })
+                  }
+                  className="rounded border border-slate-300 px-2 py-1 text-xs"
+                />
+              </td>
               <td className="py-1 pr-2">
                 <input
                   type="number"
