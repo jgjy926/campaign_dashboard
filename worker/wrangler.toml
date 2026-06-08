@@ -1,0 +1,24 @@
+name = "canpaigndashboard"
+main = "src/index.js"
+compatibility_date = "2024-10-01"
+
+# --- Public, non-secret config ---
+[vars]
+# Origin allowed to call this Worker (your GitHub Pages site). Use "*" only for local dev.
+ALLOWED_ORIGIN = "https://jgjy926.github.io,http://localhost:5173"
+# Koofr WebDAV base URL. Confirm the exact path for your account/folder.
+KOOFR_DAV_BASE = "https://app.koofr.net/dav/Koofr"
+# Path of the state file and media folder within KOOFR_DAV_BASE.
+STATE_PATH = "campaigns.json"
+MEDIA_DIR = "media"
+# Workers AI model for the Ask feature.
+AI_MODEL = "@cf/meta/llama-3.1-8b-instruct"
+
+# Workers AI binding (free tier). Powers /api/ask.
+[ai]
+binding = "AI"
+
+# --- Secrets (set via `wrangler secret put`) ---
+#   wrangler secret put APP_API_KEY        # must equal frontend VITE_APP_API_KEY
+#   wrangler secret put KOOFR_AUTH_HEADER  # "Basic base64(user:apppassword)"
+#   wrangler secret put GEMINI_API_KEY     # optional fallback brain
