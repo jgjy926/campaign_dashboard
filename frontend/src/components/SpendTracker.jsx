@@ -5,6 +5,7 @@ import { rm } from '../lib/format'
 
 export default function SpendTracker({ campaign }) {
   const updateCycle = useStore((s) => s.updateCycle)
+  const deleteCycle = useStore((s) => s.deleteCycle)
   const r = rollup(campaign)
 
   function setSpend(cycle, value) {
@@ -29,6 +30,7 @@ export default function SpendTracker({ campaign }) {
             <th className="py-1 pr-2">Received?</th>
             <th className="py-1 pr-2">Date received</th>
             <th className="py-1 pr-2">Actual amount</th>
+            <th className="py-1" />
           </tr>
         </thead>
         <tbody>
@@ -118,6 +120,15 @@ export default function SpendTracker({ campaign }) {
                   }
                   className="w-24 rounded border border-slate-300 px-2 py-1 disabled:bg-slate-100"
                 />
+              </td>
+              <td className="py-1">
+                <button
+                  title="Remove this cycle"
+                  onClick={() => deleteCycle(campaign.campaign_id, cy.cycle_id)}
+                  className="rounded px-1.5 py-0.5 text-slate-300 hover:bg-red-50 hover:text-red-500"
+                >
+                  ×
+                </button>
               </td>
             </tr>
           ))}

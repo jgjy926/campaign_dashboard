@@ -97,6 +97,18 @@ export const useStore = create((set, get) => ({
       ),
     })),
 
+  deleteCycle: (campaignId, cycleId) =>
+    set((s) => ({
+      doc: persist(
+        set,
+        get,
+        replaceCampaign(s.doc, campaignId, (c) => ({
+          ...c,
+          cycles: c.cycles.filter((cy) => cy.cycle_id !== cycleId),
+        })),
+      ),
+    })),
+
   // ---- Attachments (T&C snapshot / SMS image) ----
   addAttachment: (campaignId, attachment) =>
     set((s) => ({
