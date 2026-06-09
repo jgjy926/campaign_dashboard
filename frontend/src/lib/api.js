@@ -42,6 +42,16 @@ export async function uploadSnapshot(name, blob) {
   return res.json()
 }
 
+// Fetches a media blob from Koofr via the Worker proxy.
+// Returns a Blob, or throws on failure.
+export async function fetchMediaBlob(name) {
+  const res = await fetch(`${BASE}/api/media/${encodeURIComponent(name)}`, {
+    headers: headers(),
+  })
+  if (!res.ok) throw new Error(`media fetch failed: ${res.status}`)
+  return res.blob()
+}
+
 // Ask the NotebookLM-style endpoint a question, grounded server-side in the
 // provided context (relevant campaigns + extracted T&C text).
 export async function askQuestion(question, context) {

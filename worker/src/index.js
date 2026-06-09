@@ -33,6 +33,9 @@ export default {
       if (url.pathname === '/api/upload-snapshot' && request.method === 'POST') {
         return await handleUpload(request, env, cors)
       }
+      if (url.pathname.startsWith('/api/media/') && request.method === 'GET') {
+        return await handleMediaFetch(url, env, cors)
+      }
       if (url.pathname === '/api/ask' && request.method === 'POST') {
         return await handleAsk(request, env, cors)
       }
@@ -73,6 +76,11 @@ async function handleUpload(request, env, cors) {
   const name = sanitize(form.get('name') || `upload_${Date.now()}.png`)
   const file = form.get('file')
   if (!file) return json({ error: 'missing file' }, 400, cors)
+
+  // Ensure the media directory exists before writing into it.
+  // MKCOL is idempotent: 201 = created, 405/301/405 = already exists — both are fine.
+  await koofr(env, env.MEDIA_DIR, { method: 'MKCOL' }).catch(() => {})
+
   const path = `${env.MEDIA_DIR}/${name}`
   const res = await koofr(env, path, {
     method: 'PUT',
@@ -81,6 +89,22 @@ async function handleUpload(request, env, cors) {
   })
   if (!res.ok) return json({ error: `koofr ${res.status}` }, 502, cors)
   return json({ ok: true, url: `/media/${name}` }, 200, cors)
+}
+
+async function handleMediaFetch(url, env, cors) {
+  // Proxy a media blob from Koofr back to the browser so devices that didn't
+  // perform the original upload can still display T&C snapshots and SMS images.
+  const name = sanitize(decodeURIComponent(url.pathname.replace('/api/media/', '')))
+  if (!name) return json({ error: 'missing name' }, 400, cors)
+  const path = `${env.MEDIA_DIR}/${name}`
+  const res = await koofr(env, path, { method: 'GET' })
+  if (res.status === 404) return json({ error: 'not found' }, 404, cors)
+  if (!res.ok) return json({ error: `koofr ${res.status}` }, 502, cors)
+  const contentType = res.headers.get('Content-Type') || 'application/octet-stream'
+  return new Response(res.body, {
+    status: 200,
+    headers: { ...cors, 'Content-Type': contentType, 'Cache-Control': 'private, max-age=86400' },
+  })
 }
 
 async function handleAsk(request, env, cors) {
