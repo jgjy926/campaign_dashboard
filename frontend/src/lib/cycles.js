@@ -26,7 +26,7 @@ function defaultPayoutDate(year, monthIndex) {
   return ymd(new Date(Date.UTC(payYear, payMonth, lastDayOfMonth(payYear, payMonth))))
 }
 
-function emptyCycle(year, monthIndex) {
+export function emptyCycle(year, monthIndex) {
   return {
     cycle_id: newCycleId(),
     label: `${MONTHS[monthIndex]} ${year}`,
@@ -38,12 +38,15 @@ function emptyCycle(year, monthIndex) {
     is_received: false,
     received_date: null,
     actual_amount_received: 0,
+    notes: '',
   }
 }
 
 // Generate cycle rows for the [start_date, end_date] window, preserving any
 // existing rows that match a month (so edits aren't wiped on date changes).
-export function generateCycles(startDate, endDate, existing = []) {
+// boundaryDays: skip the last month if the campaign covers fewer than this
+// many days in it (0 = disabled, matches old behaviour).
+export function generateCycles(startDate, endDate, existing = [], boundaryDays = 0) {
   const start = parseDate(startDate)
   const end = parseDate(endDate)
   if (!start || !end || end < start) return existing
@@ -54,15 +57,21 @@ export function generateCycles(startDate, endDate, existing = []) {
   let m = start.getUTCMonth()
   const endY = end.getUTCFullYear()
   const endM = end.getUTCMonth()
+  const startY = start.getUTCFullYear()
+  const startM = start.getUTCMonth()
 
   while (y < endY || (y === endY && m <= endM)) {
+    // Skip the boundary month if it covers fewer days than the threshold,
+    // but never skip when it is also the first month (single-month campaign).
+    const isLastMonth = y === endY && m === endM
+    const isFirstMonth = y === startY && m === startM
+    if (boundaryDays > 0 && isLastMonth && !isFirstMonth && end.getUTCDate() < boundaryDays) {
+      break
+    }
     const key = `${y}-${String(m + 1).padStart(2, '0')}`
     rows.push(byKey.get(key) || emptyCycle(y, m))
     m += 1
-    if (m > 11) {
-      m = 0
-      y += 1
-    }
+    if (m > 11) { m = 0; y += 1 }
   }
   return rows
 }

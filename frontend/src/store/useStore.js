@@ -67,7 +67,12 @@ export const useStore = create((set, get) => ({
       // Keep monthly cycles in sync with the date window.
       const withCycles = {
         ...campaign,
-        cycles: generateCycles(campaign.start_date, campaign.end_date, campaign.cycles || []),
+        cycles: generateCycles(
+          campaign.start_date,
+          campaign.end_date,
+          campaign.cycles || [],
+          campaign.boundary_days ?? 0,
+        ),
       }
       const exists = s.doc.campaigns.some((c) => c.campaign_id === campaign.campaign_id)
       const campaigns = exists
@@ -105,6 +110,39 @@ export const useStore = create((set, get) => ({
         replaceCampaign(s.doc, campaignId, (c) => ({
           ...c,
           cycles: c.cycles.filter((cy) => cy.cycle_id !== cycleId),
+        })),
+      ),
+    })),
+
+  addCycle: (campaignId, cycle) =>
+    set((s) => ({
+      doc: persist(
+        set,
+        get,
+        replaceCampaign(s.doc, campaignId, (c) => ({
+          ...c,
+          cycles: [...c.cycles, cycle],
+        })),
+      ),
+    })),
+
+  markAllCyclesReceived: (campaignId, receivedDate) =>
+    set((s) => ({
+      doc: persist(
+        set,
+        get,
+        replaceCampaign(s.doc, campaignId, (c) => ({
+          ...c,
+          cycles: c.cycles.map((cy) =>
+            cy.is_received
+              ? cy
+              : {
+                  ...cy,
+                  is_received: true,
+                  received_date: receivedDate,
+                  actual_amount_received: cy.actual_amount_received || cy.expected_cashback,
+                },
+          ),
         })),
       ),
     })),

@@ -17,6 +17,7 @@ export default function CampaignForm({ initial, onDone }) {
       min_spend_threshold: Number(d.min_spend_threshold) || 0,
       earning_rate: Number(d.earning_rate) || 0,
       cashback_cap: Number(d.cashback_cap) || 0,
+      boundary_days: Number(d.boundary_days) || 0,
     })
     onDone?.()
   }
@@ -66,6 +67,17 @@ export default function CampaignForm({ initial, onDone }) {
         <label className="flex items-center gap-2 text-slate-500">
           <input type="checkbox" checked={d.is_fcfs} onChange={(e) => set('is_fcfs', e.target.checked)} />
           First-come-first-served
+        </label>
+        <label className="text-slate-500">Skip last month if &lt; N days
+          <input
+            type="number"
+            min="0"
+            max="28"
+            value={d.boundary_days ?? 7}
+            onChange={(e) => set('boundary_days', e.target.value)}
+            className="mt-0.5 block w-full rounded border border-slate-300 px-2 py-1"
+          />
+          <span className="text-slate-400">(0 = keep all months)</span>
         </label>
       </div>
       <div className="flex gap-2">

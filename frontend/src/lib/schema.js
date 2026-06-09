@@ -59,6 +59,7 @@ export function emptyCampaign(cardId = '') {
     cap_period: 'monthly', // 'monthly' | 'campaign'
     is_fcfs: false,
     pool_risk_level: 'Low',
+    boundary_days: 7,
     attachments: [],
     cycles: [],
   }
