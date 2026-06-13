@@ -12,7 +12,10 @@ KOOFR_DAV_BASE = "https://app.koofr.net/dav/Koofr"
 STATE_PATH = "campaigns.json"
 MEDIA_DIR = "media"
 # Workers AI model for the Ask feature.
-AI_MODEL = "@cf/meta/llama-3.1-8b-instruct"
+# (The older @cf/meta/llama-3.1-8b-instruct was deprecated 2026-05-30; this
+# multimodal vision-instruct model also handles text-only chat. Matches the
+# rental-property repo, keeping both projects on the same engine.)
+AI_MODEL = "@cf/meta/llama-3.2-11b-vision-instruct"
 
 # Workers AI binding (free tier). Powers /api/ask.
 [ai]
