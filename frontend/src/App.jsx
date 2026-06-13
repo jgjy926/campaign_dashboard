@@ -40,7 +40,7 @@ export default function App() {
   return (
     <div className="mx-auto max-w-7xl p-4">
       <header className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-800">Cashback Optimizer</h1>
+        <h1 className="text-xl font-bold text-slate-800">C.B Campaign Tracker</h1>
         <div className="flex items-center gap-3">
           <SyncStatus />
           <nav className="flex gap-1 rounded-lg bg-white p-1 shadow-sm text-xs">

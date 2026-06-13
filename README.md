@@ -1,4 +1,4 @@
-# Cashback Optimizer
+# C.B Campaign Tracker
 
 A serverless, local-first cashback-campaign tracker. The browser SPA works fully offline
 against IndexedDB and (optionally) syncs through a Cloudflare Worker to Koofr cloud storage,
