@@ -84,16 +84,27 @@ export function expectedForSpend(spend, earningRate, cashbackCap, capPeriod) {
 }
 
 // Roll-ups across all cycles of a campaign (derived, never stored).
+// A whole-campaign cap (cap_period === 'campaign') is enforced here on the
+// totals; a monthly cap is already applied per-cycle in expectedForSpend.
 export function rollup(campaign) {
   const cycles = campaign.cycles || []
+  const cap = Number(campaign.cashback_cap) || 0
+  const isCampaignCap = campaign.cap_period === 'campaign' && cap > 0
+
   const totalSpend = cycles.reduce((s, c) => s + (Number(c.spend) || 0), 0)
-  const totalExpected = cycles.reduce((s, c) => s + (Number(c.expected_cashback) || 0), 0)
+  const rawExpected = cycles.reduce((s, c) => s + (Number(c.expected_cashback) || 0), 0)
   const totalReceived = cycles.reduce(
     (s, c) => s + (c.is_received ? Number(c.actual_amount_received) || 0 : 0),
     0,
   )
-  const outstanding = cycles
+  const rawOutstanding = cycles
     .filter((c) => !c.is_received)
     .reduce((s, c) => s + (Number(c.expected_cashback) || 0), 0)
+
+  const totalExpected = isCampaignCap ? Math.min(rawExpected, cap) : rawExpected
+  const outstanding = isCampaignCap
+    ? Math.max(0, Math.min(rawOutstanding, cap - totalReceived))
+    : rawOutstanding
+
   return { totalSpend, totalExpected, totalReceived, outstanding }
 }

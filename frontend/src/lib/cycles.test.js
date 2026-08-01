@@ -46,4 +46,45 @@ describe('rollup', () => {
     }
     expect(rollup(c)).toEqual({ totalSpend: 300, totalExpected: 30, totalReceived: 9, outstanding: 20 })
   })
+
+  it('caps totalExpected at a whole-campaign cap', () => {
+    const c = {
+      cap_period: 'campaign',
+      cashback_cap: 25,
+      cycles: [
+        { spend: 100, expected_cashback: 20, is_received: false },
+        { spend: 100, expected_cashback: 20, is_received: false },
+      ],
+    }
+    const r = rollup(c)
+    expect(r.totalExpected).toBe(25) // 40 raw, clamped to the 25 cap
+    expect(r.outstanding).toBe(25)
+  })
+
+  it('reduces campaign-cap outstanding by what was already received', () => {
+    const c = {
+      cap_period: 'campaign',
+      cashback_cap: 25,
+      cycles: [
+        { spend: 100, expected_cashback: 20, is_received: true, actual_amount_received: 20 },
+        { spend: 100, expected_cashback: 20, is_received: false },
+      ],
+    }
+    const r = rollup(c)
+    expect(r.totalReceived).toBe(20)
+    expect(r.outstanding).toBe(5) // only 5 of the 25 cap remains
+  })
+
+  it('does not cap totals for a monthly cap', () => {
+    const c = {
+      cap_period: 'monthly',
+      cashback_cap: 25,
+      cycles: [
+        { spend: 100, expected_cashback: 20, is_received: false },
+        { spend: 100, expected_cashback: 20, is_received: false },
+      ],
+    }
+    // Monthly caps are applied per cycle upstream, so rollup just sums.
+    expect(rollup(c).totalExpected).toBe(40)
+  })
 })

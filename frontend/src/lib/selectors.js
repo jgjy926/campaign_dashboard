@@ -3,6 +3,16 @@ import { parseDate, rollup } from './cycles'
 
 export const DAY_MS = 86_400_000
 
+// Archived campaigns are kept for records but excluded from every live view.
+export function isArchived(campaign) {
+  return campaign?.status === 'archived'
+}
+
+// Only the campaigns that should appear on the dashboard (non-archived).
+function liveCampaigns(doc) {
+  return (doc.campaigns || []).filter((c) => !isArchived(c))
+}
+
 // "Today" as a UTC midnight Date so countdowns are stable across timezones.
 export function today(now = new Date()) {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
@@ -45,22 +55,38 @@ export function isUpcoming(campaign, ref = today()) {
 
 // Active campaigns with progress figures for the current month.
 export function activeCampaigns(doc, ref = today()) {
-  return (doc.campaigns || [])
+  return liveCampaigns(doc)
     .filter((c) => isActive(c, ref))
     .map((c) => {
       const cyc = currentCycle(c, ref)
       const trackedSpend = cyc ? Number(cyc.spend) || 0 : 0
       const threshold = Number(c.min_spend_threshold) || 0
-      const capSpend = spendForCap(c)
-      const projected = Math.min(trackedSpend * (Number(c.earning_rate) || 0), Number(c.cashback_cap) || Infinity)
+      const rate = Number(c.earning_rate) || 0
+      const cap = Number(c.cashback_cap) || 0
+
+      // Cashback already committed against the cap before this cycle. For a
+      // monthly cap only the current cycle counts (prior = 0); for a
+      // whole-campaign cap, every other cycle's expected cashback counts.
+      const priorCashback =
+        cap > 0 && c.cap_period === 'campaign'
+          ? (c.cycles || [])
+              .filter((x) => !cyc || x.cycle_id !== cyc.cycle_id)
+              .reduce((s, x) => s + (Number(x.expected_cashback) || 0), 0)
+          : 0
+
+      const currentCashback = trackedSpend * rate
+      const capHeadroom = cap > 0 ? Math.max(0, cap - priorCashback - currentCashback) : Infinity
+      const projected = cap > 0 ? Math.min(currentCashback, Math.max(0, cap - priorCashback)) : currentCashback
+      const capReached = cap > 0 && priorCashback + currentCashback >= cap
+
       return {
         campaign: c,
         card: cardLabel(doc.cards, c.associated_card_id),
         trackedSpend,
         qualified: trackedSpend >= threshold,
         spendToQualify: Math.max(0, threshold - trackedSpend),
-        spendToCap: Number.isFinite(capSpend) ? Math.max(0, capSpend - trackedSpend) : Infinity,
-        capReached: trackedSpend >= capSpend,
+        spendToCap: rate > 0 && Number.isFinite(capHeadroom) ? capHeadroom / rate : Infinity,
+        capReached,
         projected,
       }
     })
@@ -68,7 +94,7 @@ export function activeCampaigns(doc, ref = today()) {
 
 // Upcoming campaigns with whole-day countdown.
 export function upcomingCampaigns(doc, ref = today()) {
-  return (doc.campaigns || [])
+  return liveCampaigns(doc)
     .filter((c) => isUpcoming(c, ref))
     .map((c) => ({
       campaign: c,
@@ -98,7 +124,7 @@ export function nextBestByCategory(doc, ref = today()) {
 // Reconciliation ledger: every unpaid cycle, flagged overdue if past payout date.
 export function reconciliationLedger(doc, ref = today()) {
   const rows = []
-  for (const c of doc.campaigns || []) {
+  for (const c of liveCampaigns(doc)) {
     for (const cyc of c.cycles || []) {
       if (cyc.is_received) continue
       const payout = parseDate(cyc.expected_payout_date)
@@ -120,7 +146,7 @@ export function reconciliationLedger(doc, ref = today()) {
 export function upcomingCycleStarts(doc, lookahead = 5, ref = today()) {
   const cutoff = new Date(ref.getTime() + lookahead * DAY_MS)
   const rows = []
-  for (const c of doc.campaigns || []) {
+  for (const c of liveCampaigns(doc)) {
     for (const cyc of c.cycles || []) {
       const start = parseDate(cyc.period_start)
       if (!start) continue
@@ -137,9 +163,9 @@ export function upcomingCycleStarts(doc, lookahead = 5, ref = today()) {
   return rows.sort((a, b) => a.daysUntilStart - b.daysUntilStart)
 }
 
-// Portfolio totals for the header summary.
+// Portfolio totals for the header summary. Archived campaigns are excluded.
 export function portfolioTotals(doc) {
-  return (doc.campaigns || []).reduce(
+  return liveCampaigns(doc).reduce(
     (acc, c) => {
       const r = rollup(c)
       acc.totalExpected += r.totalExpected
@@ -149,4 +175,22 @@ export function portfolioTotals(doc) {
     },
     { totalExpected: 0, totalReceived: 0, outstanding: 0 },
   )
+}
+
+// Non-archived campaigns whose end date has passed — candidates for cleanup.
+// `reason` is 'completed' when every cycle was received, else 'unfulfilled'.
+export function archivableCampaigns(doc, ref = today()) {
+  const rows = []
+  for (const c of liveCampaigns(doc)) {
+    const end = parseDate(c.end_date)
+    if (!end || ref <= end) continue // still running (or no end date set)
+    const cycles = c.cycles || []
+    const allReceived = cycles.length > 0 && cycles.every((cy) => cy.is_received)
+    rows.push({
+      campaign: c,
+      card: cardLabel(doc.cards, c.associated_card_id),
+      reason: allReceived ? 'completed' : 'unfulfilled',
+    })
+  }
+  return rows
 }

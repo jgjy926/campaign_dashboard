@@ -12,6 +12,9 @@ export default function SpendTracker({ campaign }) {
 
   const [newMonth, setNewMonth] = useState('')
   const [bulkDate, setBulkDate] = useState(() => new Date().toISOString().slice(0, 10))
+  // Cycle ids whose expected cashback the user has hand-edited this session; we
+  // then stop auto-recomputing it from spend. UI-only — never persisted.
+  const [touched, setTouched] = useState(() => new Set())
 
   const r = rollup(campaign)
   const cycles = campaign.cycles || []
@@ -19,7 +22,7 @@ export default function SpendTracker({ campaign }) {
 
   function setSpend(cycle, value) {
     const spend = Number(value) || 0
-    const expected = cycle._expectedTouched
+    const expected = touched.has(cycle.cycle_id)
       ? cycle.expected_cashback
       : expectedForSpend(spend, campaign.earning_rate, campaign.cashback_cap, campaign.cap_period)
     updateCycle(campaign.campaign_id, cycle.cycle_id, { spend, expected_cashback: expected })
@@ -101,12 +104,12 @@ export default function SpendTracker({ campaign }) {
                   type="number"
                   step="0.01"
                   value={cy.expected_cashback}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    setTouched((prev) => new Set(prev).add(cy.cycle_id))
                     updateCycle(campaign.campaign_id, cy.cycle_id, {
                       expected_cashback: Number(e.target.value) || 0,
-                      _expectedTouched: true,
                     })
-                  }
+                  }}
                   className="w-24 rounded border border-slate-300 px-2 py-1"
                 />
               </td>

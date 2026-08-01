@@ -30,6 +30,15 @@ export default function CampaignForm({ initial, onDone }) {
         onChange={(e) => set('title', e.target.value)}
         className="w-full rounded border border-slate-300 px-2 py-1"
       />
+      <label className="block text-slate-500">
+        Cashback name on statement
+        <input
+          placeholder="e.g. CASHBACK-ONLINE (as printed by the bank)"
+          value={d.statement_name || ''}
+          onChange={(e) => set('statement_name', e.target.value)}
+          className="mt-0.5 block w-full rounded border border-slate-300 px-2 py-1 text-slate-800"
+        />
+      </label>
       <div className="grid grid-cols-2 gap-2">
         <select value={d.associated_card_id} onChange={(e) => set('associated_card_id', e.target.value)} className="rounded border border-slate-300 px-2 py-1">
           <option value="">— card —</option>

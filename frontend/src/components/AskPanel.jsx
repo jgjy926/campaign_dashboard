@@ -17,8 +17,10 @@ function buildContext(doc) {
       return {
         id: c.campaign_id,
         title: c.title,
+        statement_name: c.statement_name || '',
         card_id: c.associated_card_id,
         category: c.category,
+        status: c.status || 'active',
         active: active.has(c.campaign_id),
         start: c.start_date,
         end: c.end_date,

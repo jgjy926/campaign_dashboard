@@ -3,7 +3,7 @@
 // Koofr credentials live only here (as secrets) and never reach the browser.
 
 const DEFAULT_DOC = {
-  version: '1.1.0',
+  version: '1.2.0',
   last_updated: '1970-01-01T00:00:00.000Z',
   cards: [],
   campaigns: [],
@@ -53,15 +53,40 @@ async function handleSync(env, cors) {
   if (res.status === 404) return json(DEFAULT_DOC, 200, cors)
   if (!res.ok) return json({ error: `koofr ${res.status}` }, 502, cors)
   const text = await res.text()
-  try {
-    return new Response(text, { status: 200, headers: { ...cors, 'Content-Type': 'application/json' } })
-  } catch {
-    return json(DEFAULT_DOC, 200, cors)
-  }
+  return new Response(text, { status: 200, headers: { ...cors, 'Content-Type': 'application/json' } })
 }
 
 async function handleSave(request, env, cors) {
   const body = await request.text()
+
+  // Validate before touching stored state: a malformed body must never be able
+  // to overwrite the document (there is no version history on Koofr).
+  let parsed
+  try {
+    parsed = JSON.parse(body)
+  } catch {
+    return json({ error: 'invalid json' }, 400, cors)
+  }
+  if (!parsed || !Array.isArray(parsed.cards) || !Array.isArray(parsed.campaigns)) {
+    return json({ error: 'invalid document shape' }, 400, cors)
+  }
+
+  // Best-effort backup of the current state before overwriting, so a bad save
+  // (or a cross-device clobber) is recoverable from campaigns.json.bak.
+  try {
+    const cur = await koofr(env, env.STATE_PATH, { method: 'GET' })
+    if (cur.ok) {
+      const prev = await cur.text()
+      await koofr(env, `${env.STATE_PATH}.bak`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: prev,
+      })
+    }
+  } catch {
+    // backup is best-effort; never block the save on it
+  }
+
   const res = await koofr(env, env.STATE_PATH, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },

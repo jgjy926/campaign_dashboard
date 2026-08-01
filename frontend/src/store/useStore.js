@@ -1,7 +1,7 @@
 // Single source of truth. Mutations update the in-memory doc, persist to
 // IndexedDB immediately (local-first), and schedule a debounced cloud save.
 import { create } from 'zustand'
-import { defaultDocument } from '../lib/schema'
+import { defaultDocument, normalizeDoc } from '../lib/schema'
 import { loadState, saveState } from '../lib/storage'
 import { hydrateFromRemote, scheduleSave } from '../lib/sync'
 import { generateCycles } from '../lib/cycles'
@@ -28,15 +28,19 @@ export const useStore = create((set, get) => ({
   syncStatus: 'idle', // 'idle' | 'saving' | 'saved' | 'error'
 
   // Mount: load local cache, render, then reconcile with remote.
+  // Every document (local or remote) is normalized so newer fields exist and
+  // stale transient flags are stripped before it reaches the UI.
   init: async () => {
-    const local = await loadState()
+    const raw = await loadState()
+    const local = raw ? normalizeDoc(raw) : null
     if (local) set({ doc: local })
     set({ ready: true })
     try {
       const winner = await hydrateFromRemote(local)
       if (winner) {
-        set({ doc: winner })
-        saveState(winner)
+        const norm = normalizeDoc(winner)
+        set({ doc: norm })
+        saveState(norm)
       }
     } catch (e) {
       console.warn('remote hydrate skipped:', e.message)
@@ -87,6 +91,36 @@ export const useStore = create((set, get) => ({
         ...s.doc,
         campaigns: s.doc.campaigns.filter((c) => c.campaign_id !== campaignId),
       }),
+    })),
+
+  // Soft-archive: keep the record (received amounts, attachments) but hide it
+  // from the live dashboard. `reason` is 'completed' | 'unfulfilled' | free text.
+  archiveCampaign: (campaignId, reason = '') =>
+    set((s) => ({
+      doc: persist(
+        set,
+        get,
+        replaceCampaign(s.doc, campaignId, (c) => ({
+          ...c,
+          status: 'archived',
+          archived_reason: reason,
+          archived_at: new Date().toISOString(),
+        })),
+      ),
+    })),
+
+  unarchiveCampaign: (campaignId) =>
+    set((s) => ({
+      doc: persist(
+        set,
+        get,
+        replaceCampaign(s.doc, campaignId, (c) => ({
+          ...c,
+          status: 'active',
+          archived_reason: '',
+          archived_at: null,
+        })),
+      ),
     })),
 
   // ---- Cycles (monthly tracker rows) ----

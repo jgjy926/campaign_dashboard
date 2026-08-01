@@ -26,6 +26,11 @@ export default function ReconciliationLedger({ doc }) {
               <td className="py-1 pr-2">
                 <span className="font-medium text-slate-700">{campaign.title}</span>
                 <span className="ml-1 text-slate-400">{card}</span>
+                {campaign.statement_name && (
+                  <div className="text-[10px] text-slate-400">
+                    statement: “{campaign.statement_name}”
+                  </div>
+                )}
               </td>
               <td className="py-1 pr-2">{cycle.label}</td>
               <td className="py-1 pr-2">{rm(cycle.expected_cashback)}</td>

@@ -5,6 +5,8 @@ import {
   nextBestByCategory,
   reconciliationLedger,
   spendForCap,
+  archivableCampaigns,
+  portfolioTotals,
 } from './selectors'
 
 const REF = new Date(Date.UTC(2026, 4, 15)) // 2026-05-15
@@ -80,5 +82,58 @@ describe('reconciliationLedger', () => {
   it('omits received cycles', () => {
     const paid = campaign({ cycles: [{ cycle_id: 'p', label: 'May 2026', period_start: '2026-05-01', period_end: '2026-05-31', is_received: true, expected_payout_date: '2026-06-30' }] })
     expect(reconciliationLedger(docOf(paid), REF)).toHaveLength(0)
+  })
+})
+
+describe('archived campaigns', () => {
+  const archived = campaign({ campaign_id: 'arc', status: 'archived', spend: 400 })
+
+  it('are hidden from active campaigns', () => {
+    expect(activeCampaigns(docOf(archived), REF)).toHaveLength(0)
+  })
+
+  it('are hidden from the reconciliation ledger', () => {
+    const arcOverdue = campaign({
+      campaign_id: 'arc2',
+      status: 'archived',
+      cycles: [{ cycle_id: 'x', label: 'Mar 2026', period_start: '2026-03-01', period_end: '2026-03-31', expected_cashback: 10, is_received: false, expected_payout_date: '2026-04-30' }],
+    })
+    expect(reconciliationLedger(docOf(arcOverdue), REF)).toHaveLength(0)
+  })
+
+  it('are excluded from portfolio totals', () => {
+    const paid = campaign({
+      status: 'archived',
+      cycles: [{ cycle_id: 'p', expected_cashback: 10, is_received: true, actual_amount_received: 10 }],
+    })
+    expect(portfolioTotals(docOf(paid))).toEqual({ totalExpected: 0, totalReceived: 0, outstanding: 0 })
+  })
+})
+
+describe('archivableCampaigns', () => {
+  it('marks an ended, fully-received campaign as completed', () => {
+    const done = campaign({
+      campaign_id: 'done',
+      end_date: '2026-04-30',
+      cycles: [{ cycle_id: 'a', is_received: true, expected_cashback: 10, actual_amount_received: 10 }],
+    })
+    const rows = archivableCampaigns(docOf(done), REF)
+    expect(rows).toHaveLength(1)
+    expect(rows[0].reason).toBe('completed')
+  })
+
+  it('marks an ended campaign with unpaid cycles as unfulfilled', () => {
+    const stuck = campaign({
+      campaign_id: 'stuck',
+      end_date: '2026-04-30',
+      cycles: [{ cycle_id: 'a', is_received: false, expected_cashback: 10 }],
+    })
+    expect(archivableCampaigns(docOf(stuck), REF)[0].reason).toBe('unfulfilled')
+  })
+
+  it('ignores still-running and already-archived campaigns', () => {
+    const running = campaign({ campaign_id: 'run', end_date: '2026-12-31' })
+    const gone = campaign({ campaign_id: 'gone', end_date: '2026-04-30', status: 'archived' })
+    expect(archivableCampaigns(docOf(running, gone), REF)).toHaveLength(0)
   })
 })
