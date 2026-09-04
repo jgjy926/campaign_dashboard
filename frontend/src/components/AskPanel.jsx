@@ -28,6 +28,7 @@ function buildContext(doc) {
         rate: c.earning_rate,
         cap: c.cashback_cap,
         cap_period: c.cap_period,
+        notes: c.notes || '',
         current_month_spend: cyc ? cyc.spend : 0,
         cycles: (c.cycles || []).map((cy) => ({
           month: cy.label,

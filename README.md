@@ -17,9 +17,31 @@ Static SPA (GitHub Pages) ⇄ Cloudflare Worker (auth + proxy) ⇄ Koofr (WebDAV
 - **Dashboard** — active progress (qualify / cap), upcoming countdown, "Next Best Card"
   (where the next ringgit earns most), and a reconciliation ledger that flashes overdue payouts.
 - **T&C upload** — drop the Terms PDF, snapshot a page, extract its text (grounds the AI).
+- **Import from T&C JSON** — run the shipped prompt on a campaign's T&C in any AI, paste the
+  JSON back, review the preview, register. See
+  [docs/tnc-to-json-prompt.md](docs/tnc-to-json-prompt.md).
 - **SMS upload** — drag a screenshot of the bank's confirmation as proof.
 - **Ask** — NotebookLM-style Q&A grounded in your campaign data + T&C text (Cloudflare
   Workers AI, optional Gemini fallback). Numbers come from the deterministic engine.
+
+## Registering a campaign from its T&C
+Instead of typing a campaign in by hand:
+
+1. **Manage → Import JSON → Copy prompt**, then run that prompt against the campaign's T&C in
+   any AI (the prompt lives in `frontend/src/lib/importPrompt.js`; `npm run prompt:doc`
+   regenerates [docs/tnc-to-json-prompt.md](docs/tnc-to-json-prompt.md) from it).
+2. Paste the JSON it returns into the import box — or drop a `.json` file on it. Fenced code
+   blocks, a bare array, a single object, `"5%"`, `31/12/2026` and `RM 1,000` all parse.
+3. The preview shows each campaign it found: the resolved values, the month rows that will be
+   generated, anything the T&C never stated (amber), likely duplicates, and the verbatim T&C
+   sentence behind each number. Edit anything, untick what you don't want.
+4. Cards are fuzzy-matched by bank + product name; when nothing matches you pick a card or
+   create one from the T&C's own wording.
+5. **Register** writes them in one go. Nothing touches the document before that click.
+
+Imported campaigns keep their provenance (`import_meta`: source document, confidence, evidence
+quotes), visible under the campaign's detail view — so a rate can be checked against the clause
+that produced it months later.
 
 ## Frontend (`frontend/`)
 ```bash

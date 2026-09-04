@@ -10,6 +10,7 @@ import ReconciliationLedger from './components/ReconciliationLedger'
 import UpcomingCycleStarts from './components/UpcomingCycleStarts'
 import CardManager from './components/CardManager'
 import CampaignForm from './components/CampaignForm'
+import ImportCampaigns from './components/ImportCampaigns'
 import CampaignDetail from './components/CampaignDetail'
 import AskPanel from './components/AskPanel'
 
@@ -30,7 +31,7 @@ export default function App() {
   const archiveCampaign = useStore((s) => s.archiveCampaign)
   const unarchiveCampaign = useStore((s) => s.unarchiveCampaign)
   const [tab, setTab] = useState('dashboard')
-  const [editing, setEditing] = useState(null) // campaign object or 'new'
+  const [editing, setEditing] = useState(null) // campaign object, 'new', or 'import'
   const [expanded, setExpanded] = useState(null)
   const [campaignFilter, setCampaignFilter] = useState('active') // 'active' | 'archived'
 
@@ -129,6 +130,13 @@ export default function App() {
                   </button>
                 )}
                 <button
+                  onClick={() => { setCampaignFilter('active'); setEditing('import') }}
+                  title="Paste the JSON an AI extracted from a campaign's T&C"
+                  className="rounded border border-indigo-300 bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+                >
+                  Import JSON
+                </button>
+                <button
                   onClick={() => { setCampaignFilter('active'); setEditing('new') }}
                   className="rounded bg-slate-800 px-2 py-1 text-xs font-medium text-white"
                 >
@@ -136,6 +144,10 @@ export default function App() {
                 </button>
               </div>
             </div>
+
+            {editing === 'import' && campaignFilter === 'active' && (
+              <ImportCampaigns onDone={() => setEditing(null)} />
+            )}
 
             {editing === 'new' && campaignFilter === 'active' && <CampaignForm onDone={() => setEditing(null)} />}
 

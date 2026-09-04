@@ -10,8 +10,35 @@ export default function CampaignDetail({ campaign }) {
   const tnc = (campaign.attachments || []).filter((a) => a.type === 'tnc')
   const sms = (campaign.attachments || []).filter((a) => a.type === 'sms')
 
+  const meta = campaign.import_meta
+  const evidence = meta?.evidence && typeof meta.evidence === 'object' ? meta.evidence : {}
+
   return (
     <div className="space-y-4 border-t border-slate-100 pt-3">
+      {campaign.notes && (
+        <p className="rounded bg-slate-50 px-2 py-1.5 text-xs text-slate-600">{campaign.notes}</p>
+      )}
+
+      {meta && (
+        <details className="rounded border border-slate-200 px-2 py-1.5 text-xs">
+          <summary className="cursor-pointer text-slate-500">
+            Imported from T&amp;C{meta.source_document ? ` — ${meta.source_document}` : ''}
+            {meta.confidence && meta.confidence !== 'unrated' && ` · ${meta.confidence} confidence`}
+          </summary>
+          {Object.keys(evidence).length > 0 ? (
+            <ul className="mt-1.5 space-y-1 border-l-2 border-slate-200 pl-2 text-slate-500">
+              {Object.entries(evidence).map(([field, quote]) => (
+                <li key={field}>
+                  <span className="font-medium text-slate-600">{field}:</span> “{String(quote)}”
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-1.5 text-slate-400">No source quotes were supplied with this import.</p>
+          )}
+        </details>
+      )}
+
       <div>
         <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Monthly tracker</h4>
         <SpendTracker campaign={campaign} />

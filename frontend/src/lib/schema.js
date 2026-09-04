@@ -1,7 +1,7 @@
 // Shape of campaigns.json and small id/default helpers.
 // The whole app state lives in a single document (see plan).
 
-export const SCHEMA_VERSION = '1.2.0'
+export const SCHEMA_VERSION = '1.3.0'
 
 export const CATEGORIES = [
   'Online',
@@ -73,6 +73,12 @@ export function emptyCampaign(cardId = '') {
     status: 'active', // 'active' | 'archived'
     archived_reason: '', // '' | 'completed' | 'unfulfilled' | free text
     archived_at: null, // ISO timestamp when archived
+    // Free text: exclusions, registration steps, when the bank says it pays.
+    notes: '',
+    // Provenance when the campaign came from a pasted LLM extraction:
+    // { imported_at, source_document, confidence, evidence: { field: quote } }.
+    // Null for hand-entered campaigns.
+    import_meta: null,
     attachments: [],
     cycles: [],
   }
@@ -109,6 +115,8 @@ function normalizeCampaign(campaign) {
   // Preserve the campaign's own id/card rather than the freshly generated ones.
   merged.campaign_id = campaign.campaign_id || defaults.campaign_id
   merged.status = CAMPAIGN_STATUSES.includes(campaign.status) ? campaign.status : 'active'
+  merged.import_meta =
+    campaign.import_meta && typeof campaign.import_meta === 'object' ? campaign.import_meta : null
   merged.cycles = Array.isArray(campaign.cycles) ? campaign.cycles.map(normalizeCycle) : []
   merged.attachments = Array.isArray(campaign.attachments) ? campaign.attachments : []
   return merged
