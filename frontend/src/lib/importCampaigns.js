@@ -6,7 +6,8 @@
 // reported as an issue so the preview can show it before anything is saved.
 import { CATEGORIES, POOL_RISK_LEVELS, emptyCampaign, newCardId } from './schema'
 
-export const IMPORT_SCHEMA = 'cb-campaign-import/v1'
+// v2 adds `reward` (the reward as the T&C phrases it). v1 pastes still parse.
+export const IMPORT_SCHEMA = 'cb-campaign-import/v2'
 
 // Fields the preview should flag when the LLM could not find them.
 const NOTABLE = [
@@ -104,6 +105,114 @@ export function coerceRate(value) {
     return { value: num / 100, note: `read "${s}" as ${num}% = ${num / 100}` }
   }
   return { value: num }
+}
+
+const round6 = (n) => Math.round(n * 1e6) / 1e6
+const asPct = (r) => `${+(r * 100).toFixed(2)}%`
+const money = (n) => `RM${Number(n).toLocaleString('en-MY', { maximumFractionDigits: 2 })}`
+
+function coerceRewardType(value) {
+  const s = String(value || '').toLowerCase()
+  if (/percent|%/.test(s)) return 'percentage'
+  if (/flat|fixed|lump/.test(s)) return 'flat'
+  if (/per|every|block/.test(s)) return 'per_spend'
+  return null
+}
+
+// Turn a v2 `reward` block into a rate. Only a "percentage" states the rate
+// outright; "per_spend" and "flat" are worked out here from the T&C's own
+// figures, so a slip in the model's arithmetic cannot reach the tracker.
+function deriveReward(reward, minSpend) {
+  const none = { rate: null, working: null, flatCap: null, flatSpend: null, issues: [] }
+  if (!reward || typeof reward !== 'object') return none
+
+  const rate = coerceRate(reward.rate ?? reward.percentage)
+  const cash = coerceMoney(reward.cashback_amount ?? reward.cashback ?? reward.amount).value
+  const spend = coerceMoney(reward.spend_amount ?? reward.spend).value
+  // Cash + spend with no type is read as per_spend: same rate, but no cap is
+  // inferred from it.
+  const type =
+    coerceRewardType(reward.type) ??
+    (rate.value !== null ? 'percentage' : cash !== null && spend !== null ? 'per_spend' : null)
+
+  if (type === 'percentage') {
+    if (rate.value === null) return none
+    return { ...none, rate: rate.value, issues: rate.note ? [issue('warn', 'earning_rate', rate.note)] : [] }
+  }
+
+  if (type === 'per_spend') {
+    if (!(cash > 0 && spend > 0)) return none
+    const value = round6(cash / spend)
+    return { ...none, rate: value, working: `${money(cash)} per ${money(spend)} spent = ${asPct(value)}` }
+  }
+
+  if (type === 'flat') {
+    if (!(cash > 0)) return none
+    const base = spend > 0 ? spend : minSpend > 0 ? minSpend : null
+    if (!base) {
+      return {
+        ...none,
+        flatCap: cash,
+        issues: [issue('warn', 'earning_rate', `Flat ${money(cash)} reward with no qualifying spend stated — no rate to estimate from.`)],
+      }
+    }
+    const value = round6(cash / base)
+    return {
+      rate: value,
+      working: `flat ${money(cash)} on ${money(base)} spend = ${asPct(value)} effective`,
+      flatCap: cash,
+      flatSpend: spend > 0 ? spend : null,
+      issues: [
+        issue(
+          'warn',
+          'earning_rate',
+          `Flat ${money(cash)} reward: estimated as ${asPct(value)} of spend up to ${money(cash)}, which matches the T&C once spend reaches ${money(base)}.`,
+        ),
+      ],
+    }
+  }
+
+  return none
+}
+
+// The rate the tracker multiplies spend by. A rate derived from `reward` wins
+// over the model's own earning_rate; a v1 paste has only earning_rate.
+// -> { value, working, flatCap, flatSpend, issues }
+export function resolveRate(raw, minSpend = null) {
+  const stated = coerceRate(raw.earning_rate ?? raw.cashback_rate ?? raw.rate)
+  const reward = deriveReward(raw.reward, minSpend)
+  const issues = [...reward.issues]
+  const extras = { flatCap: reward.flatCap, flatSpend: reward.flatSpend }
+
+  if (reward.rate === null) {
+    if (stated.error) issues.push(issue('error', 'earning_rate', stated.error))
+    if (stated.note) issues.push(issue('warn', 'earning_rate', stated.note))
+    if (stated.value === null && !stated.error && reward.issues.length === 0) {
+      issues.push(issue('warn', 'earning_rate', 'No reward figure in the T&C — rate left at 0%, so estimated cashback stays RM0 until you set it.'))
+    }
+    return { value: stated.value, working: null, ...extras, issues }
+  }
+
+  if (stated.value !== null && Math.abs(stated.value - reward.rate) > 0.0005) {
+    issues.push(
+      issue(
+        'warn',
+        'earning_rate',
+        `The AI wrote earning_rate ${asPct(stated.value)}, but the T&C figures give ${reward.working || asPct(reward.rate)} — using ${asPct(reward.rate)}.`,
+      ),
+    )
+  }
+  return { value: reward.rate, working: reward.working, ...extras, issues }
+}
+
+// Derived values the draft still holds, as { field: working }. A value the user
+// changed in the preview is no longer derived, so its working is dropped.
+export function activeDerivations(draft, derived = {}) {
+  return Object.fromEntries(
+    Object.entries(derived)
+      .filter(([field, d]) => Number(draft[field]) === d.value)
+      .map(([field, d]) => [field, d.working]),
+  )
 }
 
 // Strip currency noise: "RM 1,000", "1000.00", 1000.
@@ -241,27 +350,43 @@ function normalizeItem(raw, index) {
     issues.push(issue('error', 'end_date', 'End date is before the start date.'))
   }
 
-  const rate = coerceRate(raw.earning_rate ?? raw.cashback_rate ?? raw.rate)
-  if (rate.error) issues.push(issue('error', 'earning_rate', rate.error))
-  if (rate.note) issues.push(issue('warn', 'earning_rate', rate.note))
-  if (rate.value === null && !rate.error) {
-    issues.push(issue('warn', 'earning_rate', 'Rate not stated in the T&C.'))
-  }
-  draft.earning_rate = rate.value ?? 0
-
-  const cap = coerceMoney(raw.cashback_cap ?? raw.cap)
-  if (cap.error) issues.push(issue('error', 'cashback_cap', cap.error))
-  if (cap.value === null && !cap.error) {
-    issues.push(issue('warn', 'cashback_cap', 'Cap not stated — treated as uncapped (0).'))
-  }
-  draft.cashback_cap = cap.value ?? 0
+  // Values worked out from other T&C figures rather than read directly:
+  // { field: { value, working } }. Shown in the preview, kept in import_meta.
+  const derived = {}
 
   const min = coerceMoney(raw.min_spend_threshold ?? raw.min_spend ?? raw.minimum_spend)
-  if (min.error) issues.push(issue('error', 'min_spend_threshold', min.error))
-  if (min.value === null && !min.error) {
-    issues.push(issue('warn', 'min_spend_threshold', 'Minimum spend not stated — treated as 0.'))
+  const rate = resolveRate(raw, min.value)
+  issues.push(...rate.issues)
+  draft.earning_rate = rate.value ?? 0
+  if (rate.working) derived.earning_rate = { value: rate.value, working: rate.working }
+
+  // A flat reward fixes the cap (it is the most the campaign pays) and the
+  // spend it needs — unless the T&C states either one outright.
+  const cap = coerceMoney(raw.cashback_cap ?? raw.cap)
+  if (cap.error) issues.push(issue('error', 'cashback_cap', cap.error))
+  if (cap.value === null && !cap.error && rate.flatCap) {
+    draft.cashback_cap = rate.flatCap
+    derived.cashback_cap = { value: rate.flatCap, working: `the flat ${money(rate.flatCap)} reward is the most it pays` }
+  } else {
+    if (cap.value === null && !cap.error) {
+      issues.push(issue('warn', 'cashback_cap', 'Cap not stated — treated as uncapped (0).'))
+    }
+    draft.cashback_cap = cap.value ?? 0
   }
-  draft.min_spend_threshold = min.value ?? 0
+
+  if (min.error) issues.push(issue('error', 'min_spend_threshold', min.error))
+  if (min.value === null && !min.error && rate.flatSpend) {
+    draft.min_spend_threshold = rate.flatSpend
+    derived.min_spend_threshold = {
+      value: rate.flatSpend,
+      working: `spend needed for the flat ${money(rate.flatCap)} reward`,
+    }
+  } else {
+    if (min.value === null && !min.error) {
+      issues.push(issue('warn', 'min_spend_threshold', 'Minimum spend not stated — treated as 0.'))
+    }
+    draft.min_spend_threshold = min.value ?? 0
+  }
 
   const period = coerceCapPeriod(raw.cap_period)
   if (period.note) issues.push(issue('warn', 'cap_period', period.note))
@@ -293,7 +418,14 @@ function normalizeItem(raw, index) {
     evidence: raw._source && typeof raw._source === 'object' ? raw._source : {},
     confidence: confidence || 'unrated',
     issues,
-    missing: NOTABLE.filter((f) => raw[f] === null || raw[f] === undefined || raw[f] === ''),
+    derived,
+    // The rate counts as found when `reward` produced one, even if the model
+    // left earning_rate itself blank.
+    missing: NOTABLE.filter((f) =>
+      f === 'earning_rate'
+        ? rate.value === null
+        : (raw[f] === null || raw[f] === undefined || raw[f] === '') && !derived[f],
+    ),
   }
 }
 

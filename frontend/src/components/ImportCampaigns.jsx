@@ -12,6 +12,7 @@ import {
   findDuplicate,
   draftErrors,
   cardFromHint,
+  activeDerivations,
 } from '../lib/importCampaigns'
 import { TNC_EXTRACTION_PROMPT } from '../lib/importPrompt'
 import CampaignForm from './CampaignForm'
@@ -84,6 +85,7 @@ export default function ImportCampaigns({ onDone }) {
           source_document: parsed.sourceDocument || '',
           confidence: item.confidence,
           evidence: item.evidence,
+          derived: activeDerivations(item.draft, item.derived),
         },
       })
       created.push(item.draft.title || '(untitled)')
@@ -221,6 +223,7 @@ function Preview({ item, cards, editing, skipped, onToggle, onPickCard, onEdit, 
   const months = generateCycles(c.start_date, c.end_date, [], c.boundary_days ?? 0).length
   const hint = hintLabel(item.cardHint)
   const evidenceKeys = Object.keys(item.evidence || {})
+  const working = activeDerivations(c, item.derived)
 
   if (editing) {
     return (
@@ -257,12 +260,23 @@ function Preview({ item, cards, editing, skipped, onToggle, onPickCard, onEdit, 
       </div>
 
       <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 sm:grid-cols-4">
-        <Field label="Rate" value={pct(c.earning_rate)} dim={item.missing.includes('earning_rate')} />
-        <Field label="Min spend" value={rm(c.min_spend_threshold)} dim={item.missing.includes('min_spend_threshold')} />
+        <Field
+          label="Rate"
+          value={pct(c.earning_rate)}
+          dim={item.missing.includes('earning_rate')}
+          note={working.earning_rate}
+        />
+        <Field
+          label="Min spend"
+          value={rm(c.min_spend_threshold)}
+          dim={item.missing.includes('min_spend_threshold')}
+          note={working.min_spend_threshold}
+        />
         <Field
           label="Cap"
           value={c.cashback_cap > 0 ? `${rm(c.cashback_cap)} / ${c.cap_period}` : 'uncapped'}
           dim={item.missing.includes('cashback_cap')}
+          note={working.cashback_cap}
         />
         <Field label="FCFS" value={c.is_fcfs ? `yes · ${c.pool_risk_level} risk` : 'no'} />
       </dl>
@@ -330,12 +344,14 @@ function Preview({ item, cards, editing, skipped, onToggle, onPickCard, onEdit, 
   )
 }
 
-function Field({ label, value, dim }) {
+// `note` is the working for a value derived from other T&C figures.
+function Field({ label, value, dim, note }) {
   return (
     <div>
       <dt className="text-[10px] uppercase tracking-wide text-slate-400">{label}</dt>
       <dd className={dim ? 'text-amber-700' : 'text-slate-700'}>
         {value}{dim && <span className="text-[10px]"> (not stated)</span>}
+        {note && <span className="block text-[10px] text-indigo-600" title="Worked out from the T&C figures">= {note}</span>}
       </dd>
     </div>
   )

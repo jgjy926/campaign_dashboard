@@ -11,6 +11,8 @@ import {
   findDuplicate,
   draftErrors,
   cardFromHint,
+  resolveRate,
+  activeDerivations,
 } from './importCampaigns'
 
 const CARD = { card_id: 'card_1', bank: 'Maybank', name: 'Ikhwan Visa Gold' }
@@ -135,6 +137,79 @@ describe('parseImport', () => {
   it('folds payout wording and exclusions into the campaign notes', () => {
     const r = parseImport(JSON.stringify(one({ payout_note: 'Credited within 60 days.', notes: 'Excludes petrol.' })))
     expect(r.items[0].draft.notes).toBe('Credited within 60 days. — Excludes petrol.')
+  })
+})
+
+describe('earning rate from the reward', () => {
+  const v2 = (reward, overrides = {}) =>
+    one({ earning_rate: null, cashback_cap: null, min_spend_threshold: null, reward, ...overrides })
+
+  it('takes a percentage reward even when earning_rate was left null', () => {
+    const item = parseImport(JSON.stringify(v2({ type: 'percentage', rate: 0.05 }))).items[0]
+    expect(item.draft.earning_rate).toBe(0.05)
+    expect(item.missing).not.toContain('earning_rate')
+    expect(item.derived.earning_rate).toBeUndefined() // stated, not worked out
+  })
+
+  it('works out a per-spend reward', () => {
+    const item = parseImport(
+      JSON.stringify(v2({ type: 'per_spend', cashback_amount: 1, spend_amount: 20 })),
+    ).items[0]
+    expect(item.draft.earning_rate).toBe(0.05)
+    expect(item.derived.earning_rate.working).toMatch(/RM1 per RM20 spent = 5%/)
+    expect(item.draft.cashback_cap).toBe(0) // per-spend says nothing about a cap
+  })
+
+  it('turns a flat reward into an effective rate, cap and min spend', () => {
+    const item = parseImport(
+      JSON.stringify(v2({ type: 'flat', cashback_amount: 30, spend_amount: 500 })),
+    ).items[0]
+    expect(item.draft.earning_rate).toBe(0.06)
+    expect(item.draft.cashback_cap).toBe(30)
+    expect(item.draft.min_spend_threshold).toBe(500)
+    expect(item.missing).not.toEqual(expect.arrayContaining(['cashback_cap', 'min_spend_threshold']))
+    expect(item.issues.some((i) => i.field === 'earning_rate' && /Flat RM30/.test(i.message))).toBe(true)
+  })
+
+  it('never overrides a cap or min spend the T&C states', () => {
+    const item = parseImport(
+      JSON.stringify(
+        v2({ type: 'flat', cashback_amount: 30, spend_amount: 500 }, { cashback_cap: 90, min_spend_threshold: 300 }),
+      ),
+    ).items[0]
+    expect(item.draft.cashback_cap).toBe(90)
+    expect(item.draft.min_spend_threshold).toBe(300)
+    expect(item.draft.earning_rate).toBe(0.06) // rate still from the reward's own spend figure
+  })
+
+  it('falls back to the stated min spend for a flat reward with no spend figure', () => {
+    const r = resolveRate({ reward: { type: 'flat', cashback_amount: 50 } }, 1000)
+    expect(r.value).toBe(0.05)
+    expect(r.flatSpend).toBeNull() // min spend came from the T&C, nothing to fill
+  })
+
+  it('leaves the rate unset when a flat reward has no spend to relate it to', () => {
+    const r = resolveRate({ reward: { type: 'flat', cashback_amount: 50 } }, null)
+    expect(r.value).toBeNull()
+    expect(r.issues).toHaveLength(1) // one explanation, not a second "no figure" warning
+  })
+
+  it('prefers the arithmetic over a model slip, and says so', () => {
+    const r = resolveRate({ earning_rate: 0.5, reward: { type: 'per_spend', cashback_amount: 1, spend_amount: 20 } })
+    expect(r.value).toBe(0.05)
+    expect(r.issues.some((i) => /using 5%/.test(i.message))).toBe(true)
+  })
+
+  it('still reads a v1 paste that only has earning_rate', () => {
+    const r = resolveRate({ earning_rate: '8%' })
+    expect(r.value).toBe(0.08)
+    expect(r.working).toBeNull()
+  })
+
+  it('drops the working once the preview edit changes the value', () => {
+    const derived = { earning_rate: { value: 0.05, working: 'RM1 per RM20 spent = 5%' } }
+    expect(activeDerivations({ earning_rate: 0.05 }, derived)).toEqual({ earning_rate: 'RM1 per RM20 spent = 5%' })
+    expect(activeDerivations({ earning_rate: 0.08 }, derived)).toEqual({})
   })
 })
 

@@ -76,7 +76,9 @@ export function emptyCampaign(cardId = '') {
     // Free text: exclusions, registration steps, when the bank says it pays.
     notes: '',
     // Provenance when the campaign came from a pasted LLM extraction:
-    // { imported_at, source_document, confidence, evidence: { field: quote } }.
+    // { imported_at, source_document, confidence, evidence: { field: quote },
+    //   derived: { field: working } } — derived lists values computed from other
+    //   T&C figures (e.g. a rate from "RM1 per RM20"); absent on older imports.
     // Null for hand-entered campaigns.
     import_meta: null,
     attachments: [],

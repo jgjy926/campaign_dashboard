@@ -12,6 +12,7 @@ export default function CampaignDetail({ campaign }) {
 
   const meta = campaign.import_meta
   const evidence = meta?.evidence && typeof meta.evidence === 'object' ? meta.evidence : {}
+  const derived = meta?.derived && typeof meta.derived === 'object' ? meta.derived : {}
 
   return (
     <div className="space-y-4 border-t border-slate-100 pt-3">
@@ -35,6 +36,15 @@ export default function CampaignDetail({ campaign }) {
             </ul>
           ) : (
             <p className="mt-1.5 text-slate-400">No source quotes were supplied with this import.</p>
+          )}
+          {Object.keys(derived).length > 0 && (
+            <ul className="mt-1.5 space-y-1 border-l-2 border-indigo-200 pl-2 text-slate-500">
+              {Object.entries(derived).map(([field, working]) => (
+                <li key={field}>
+                  <span className="font-medium text-slate-600">{field}</span> worked out as {String(working)}
+                </li>
+              ))}
+            </ul>
           )}
         </details>
       )}

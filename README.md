@@ -35,12 +35,17 @@ Instead of typing a campaign in by hand:
 3. The preview shows each campaign it found: the resolved values, the month rows that will be
    generated, anything the T&C never stated (amber), likely duplicates, and the verbatim T&C
    sentence behind each number. Edit anything, untick what you don't want.
+
+   The earning rate is filled in whatever way the T&C words the reward: "5%", "RM1 for every
+   RM20 spent" (5%) or "spend RM500, get RM30" (6% effective, capped at RM30, min spend RM500).
+   The AI records the reward as stated in `reward`; the importer redoes the arithmetic itself
+   and shows the working under each derived number.
 4. Cards are fuzzy-matched by bank + product name; when nothing matches you pick a card or
    create one from the T&C's own wording.
 5. **Register** writes them in one go. Nothing touches the document before that click.
 
 Imported campaigns keep their provenance (`import_meta`: source document, confidence, evidence
-quotes), visible under the campaign's detail view — so a rate can be checked against the clause
+quotes, and the working behind any derived value), visible under the campaign's detail view — so a rate can be checked against the clause
 that produced it months later.
 
 ## Frontend (`frontend/`)
