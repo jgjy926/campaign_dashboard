@@ -65,6 +65,21 @@ VITE_BASE=/<repo-name>/ npm run build
 # publish frontend/dist to the gh-pages branch (or via GitHub Actions)
 ```
 
+### Android app (Capacitor)
+`frontend/android/` wraps the same SPA in a native WebView, so it has every feature of the
+web app and talks to the same Worker (`VITE_WORKER_URL` / `VITE_APP_API_KEY` from `.env` are
+baked in at build time). The WebView's origin is `https://localhost`, which the Worker's CORS
+already allows. Needs Android Studio installed (for its JDK and the Android SDK):
+```bash
+# Windows: set JAVA_HOME to Android Studio's bundled JDK first
+#   $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+npm run android:apk
+# → android/app/build/outputs/apk/debug/app-debug.apk
+```
+Copy the APK to the phone and open it (allow "install unknown apps" for your file manager).
+Rebuild after any frontend change. The APK embeds the API key — don't share or commit it.
+Data lives in the app's own IndexedDB and syncs through Koofr like any other browser.
+
 ## Worker (`worker/`)
 ```bash
 cd worker

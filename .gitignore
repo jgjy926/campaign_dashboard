@@ -21,3 +21,7 @@ dist/
 # misc
 .DS_Store
 *.log
+
+# android builds (the APK embeds VITE_APP_API_KEY)
+*.apk
+*.aab

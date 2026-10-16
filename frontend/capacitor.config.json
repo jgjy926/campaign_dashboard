@@ -1,0 +1,8 @@
+{
+  "appId": "io.github.jgjy926.cbtracker",
+  "appName": "C.B Campaign Tracker",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": false
+  }
+}

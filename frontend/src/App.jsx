@@ -16,9 +16,9 @@ import AskPanel from './components/AskPanel'
 
 function Stat({ label, value }) {
   return (
-    <div className="rounded-lg bg-white px-4 py-3 shadow-sm">
-      <div className="text-xs text-slate-400">{label}</div>
-      <div className="text-lg font-semibold text-slate-800">{value}</div>
+    <div className="min-w-0 rounded-lg bg-white px-2.5 py-2 shadow-sm sm:px-4 sm:py-3">
+      <div className="truncate text-[11px] text-slate-400 sm:text-xs">{label}</div>
+      <div className="truncate text-sm font-semibold text-slate-800 sm:text-lg">{value}</div>
     </div>
   )
 }
@@ -58,17 +58,17 @@ export default function App() {
   if (!ready) return <div className="p-8 text-slate-400">Loading…</div>
 
   return (
-    <div className="mx-auto max-w-7xl p-4">
-      <header className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-800">C.B Campaign Tracker</h1>
-        <div className="flex items-center gap-3">
+    <div className="mx-auto max-w-7xl px-3 pb-6 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-4">
+      <header className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 sm:mb-4">
+        <h1 className="whitespace-nowrap text-lg font-bold text-slate-800 sm:text-xl">C.B Campaign Tracker</h1>
+        <div className="flex items-center gap-2 sm:gap-3">
           <SyncStatus />
-          <nav className="flex gap-1 rounded-lg bg-white p-1 shadow-sm text-xs">
+          <nav className="flex gap-1 rounded-lg bg-white p-1 text-xs shadow-sm">
             {['dashboard', 'manage'].map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`rounded px-3 py-1 capitalize ${tab === t ? 'bg-indigo-600 text-white' : 'text-slate-600'}`}
+                className={`rounded px-3 py-1.5 capitalize ${tab === t ? 'bg-indigo-600 text-white' : 'text-slate-600'}`}
               >
                 {t}
               </button>
@@ -77,7 +77,7 @@ export default function App() {
         </div>
       </header>
 
-      <div className="mb-4 grid grid-cols-3 gap-3">
+      <div className="mb-4 grid grid-cols-3 gap-2 sm:gap-3">
         <Stat label="Expected cashback" value={rm(totals.totalExpected)} />
         <Stat label="Received" value={rm(totals.totalReceived)} />
         <Stat label="Outstanding" value={rm(totals.outstanding)} />
@@ -85,12 +85,12 @@ export default function App() {
 
       {tab === 'dashboard' ? (
         <div className="grid gap-4 lg:grid-cols-3">
-          <div className="space-y-4 lg:col-span-2">
+          <div className="min-w-0 space-y-4 lg:col-span-2">
             <ActiveCampaigns doc={doc} />
             <NextBestCard doc={doc} />
             <ReconciliationLedger doc={doc} />
           </div>
-          <div className="space-y-4">
+          <div className="min-w-0 space-y-4">
             <UpcomingCycleStarts />
             <UpcomingCountdown doc={doc} />
             <div className="h-[28rem]">
@@ -100,10 +100,10 @@ export default function App() {
         </div>
       ) : (
         <div className="grid gap-4 lg:grid-cols-3">
-          <div className="lg:col-span-1">
+          <div className="min-w-0 lg:col-span-1">
             <CardManager />
           </div>
-          <div className="space-y-3 lg:col-span-2">
+          <div className="min-w-0 space-y-3 lg:col-span-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-semibold text-slate-700">Campaigns</h2>
@@ -157,20 +157,32 @@ export default function App() {
                   <CampaignForm initial={c} onDone={() => setEditing(null)} />
                 ) : (
                   <>
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                       <button
                         onClick={() => setExpanded(expanded === c.campaign_id ? null : c.campaign_id)}
-                        className="min-w-0 text-left text-sm font-medium text-slate-800"
+                        aria-expanded={expanded === c.campaign_id}
+                        className="flex min-w-0 items-start gap-2 text-left"
                       >
-                        {c.title || '(untitled)'}
-                        {isArchived(c) && c.archived_reason && (
-                          <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${c.archived_reason === 'completed' ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-600'}`}>
-                            {c.archived_reason}
+                        <svg
+                          viewBox="0 0 20 20"
+                          aria-hidden="true"
+                          className={`mt-0.5 h-4 w-4 shrink-0 fill-slate-400 transition-transform ${expanded === c.campaign_id ? 'rotate-90' : ''}`}
+                        >
+                          <path d="M7.3 4.3a1 1 0 0 1 1.4 0l5 5a1 1 0 0 1 0 1.4l-5 5a1 1 0 0 1-1.4-1.4L11.6 10 7.3 5.7a1 1 0 0 1 0-1.4z" />
+                        </svg>
+                        <span className="min-w-0">
+                          <span className="block break-words text-sm font-medium text-slate-800">
+                            {c.title || '(untitled)'}
+                            {isArchived(c) && c.archived_reason && (
+                              <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${c.archived_reason === 'completed' ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-600'}`}>
+                                {c.archived_reason}
+                              </span>
+                            )}
                           </span>
-                        )}
-                        <span className="ml-2 text-xs text-slate-400">{c.category} · {c.start_date} → {c.end_date}</span>
+                          <span className="block text-xs text-slate-400">{c.category} · {c.start_date} → {c.end_date}</span>
+                        </span>
                       </button>
-                      <span className="flex shrink-0 gap-2 text-xs">
+                      <span className="flex shrink-0 gap-4 pl-5 text-xs sm:gap-2 sm:pl-0">
                         <button onClick={() => setEditing(c)} className="text-indigo-600">edit</button>
                         {isArchived(c) ? (
                           <button onClick={() => unarchiveCampaign(c.campaign_id)} className="text-emerald-600">unarchive</button>

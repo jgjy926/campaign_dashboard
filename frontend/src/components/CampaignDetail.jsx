@@ -1,9 +1,11 @@
 // Expanded campaign view: monthly tracker, uploads, and stored attachments.
+import { useCallback, useMemo, useState } from 'react'
 import { useStore } from '../store/useStore'
 import SpendTracker from './SpendTracker'
 import TncDropzone from './TncDropzone'
 import SmsDropzone from './SmsDropzone'
 import MediaThumb from './MediaThumb'
+import MediaViewer from './MediaViewer'
 
 export default function CampaignDetail({ campaign }) {
   const removeAttachment = useStore((s) => s.removeAttachment)
@@ -70,14 +72,26 @@ export default function CampaignDetail({ campaign }) {
 }
 
 function Attachments({ title, items, campaignId, onRemove }) {
+  const [viewing, setViewing] = useState(null) // index into items, or null
+  const closeViewer = useCallback(() => setViewing(null), [])
+  const pathKey = items.map((a) => a.url).join('|')
+  const paths = useMemo(() => (pathKey ? pathKey.split('|') : []), [pathKey])
   if (items.length === 0) return null
   return (
     <div>
       <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">{title}</h4>
+      {viewing !== null && viewing < items.length && (
+        <MediaViewer
+          paths={paths}
+          index={viewing}
+          onClose={closeViewer}
+          title={title}
+        />
+      )}
       <div className="flex flex-wrap gap-2">
-        {items.map((a) => (
+        {items.map((a, i) => (
           <div key={a.att_id} className="text-center">
-            <MediaThumb path={a.url} alt={title} />
+            <MediaThumb path={a.url} alt={title} onOpen={() => setViewing(i)} />
             <button onClick={() => onRemove(campaignId, a.att_id)} className="mt-1 text-[10px] text-red-500">
               remove
             </button>
