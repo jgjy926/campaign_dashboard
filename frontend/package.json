@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "prompt:doc": "node scripts/write-prompt-doc.mjs",
+    "icons": "python scripts/make-icons.py",
     "android:apk": "vite build --base=./ && cap sync android && cd android && .\\gradlew assembleDebug"
   },
   "dependencies": {
