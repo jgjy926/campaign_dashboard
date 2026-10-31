@@ -31,9 +31,6 @@ jobs:
         env:
           VITE_BASE: /campaign_dashboard/
           VITE_WORKER_URL: https://canpaigndashboard.jgjy926.workers.dev
-          # Set this in GitHub: Settings → Secrets and variables → Actions →
-          # New repository secret → name VITE_APP_API_KEY (value = your APP_API_KEY).
-          VITE_APP_API_KEY: ${{ secrets.VITE_APP_API_KEY }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: frontend/dist

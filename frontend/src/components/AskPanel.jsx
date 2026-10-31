@@ -74,7 +74,7 @@ export default function AskPanel() {
       <h2 className="mb-2 text-sm font-semibold text-slate-700">Ask about your campaigns</h2>
       {!cloudEnabled() && (
         <p className="mb-2 rounded bg-amber-50 p-2 text-xs text-amber-700">
-          AI answers need the Worker configured (VITE_WORKER_URL + VITE_APP_API_KEY).
+          AI answers need the cloud connection. Enter your access token using the badge at the top.
         </p>
       )}
       <div className="mb-2 flex-1 space-y-2 overflow-y-auto text-xs">

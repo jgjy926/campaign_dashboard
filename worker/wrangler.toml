@@ -22,6 +22,6 @@ AI_MODEL = "@cf/meta/llama-3.2-11b-vision-instruct"
 binding = "AI"
 
 # --- Secrets (set via `wrangler secret put`) ---
-#   wrangler secret put APP_API_KEY        # must equal frontend VITE_APP_API_KEY
+#   powershell -File scripts/rotate-token.ps1  # sets APP_API_KEY; each device enters it in the app
 #   wrangler secret put KOOFR_AUTH_HEADER  # "Basic base64(user:apppassword)"
 #   wrangler secret put GEMINI_API_KEY     # optional fallback brain

@@ -52,12 +52,14 @@ that produced it months later.
 ```bash
 cd frontend
 npm install
-cp .env.example .env        # fill VITE_WORKER_URL + VITE_APP_API_KEY (or leave blank for local-only)
+cp .env.example .env        # fill VITE_WORKER_URL (or leave blank for local-only)
 npm run dev                 # http://localhost:5173
 npm test                    # unit tests (selectors + cycles)
 npm run build               # static output in dist/
 ```
-Leaving `.env` blank runs the app fully local (offline) — the cloud calls are skipped.
+Leaving `.env` blank runs the app fully local (offline) — the cloud calls are skipped. With a
+URL set, each device enters the access token once by clicking the sync badge. The token stays
+in that device's storage and is never built into the page or the APK.
 
 ### Deploy to GitHub Pages
 ```bash
@@ -67,8 +69,8 @@ VITE_BASE=/<repo-name>/ npm run build
 
 ### Android app (Capacitor)
 `frontend/android/` wraps the same SPA in a native WebView, so it has every feature of the
-web app and talks to the same Worker (`VITE_WORKER_URL` / `VITE_APP_API_KEY` from `.env` are
-baked in at build time). The WebView's origin is `https://localhost`, which the Worker's CORS
+web app and talks to the same Worker (`VITE_WORKER_URL` from `.env` is baked in at build time;
+the token is entered on the phone). The WebView's origin is `https://localhost`, which the Worker's CORS
 already allows. Needs Android Studio installed (for its JDK and the Android SDK):
 ```bash
 # Windows: set JAVA_HOME to Android Studio's bundled JDK first
@@ -77,7 +79,7 @@ npm run android:apk
 # → android/app/build/outputs/apk/debug/app-debug.apk
 ```
 Copy the APK to the phone and open it (allow "install unknown apps" for your file manager).
-Rebuild after any frontend change. The APK embeds the API key — don't share or commit it.
+Rebuild after any frontend change.
 Data lives in the app's own IndexedDB and syncs through Koofr like any other browser.
 
 ## Worker (`worker/`)
@@ -85,7 +87,7 @@ Data lives in the app's own IndexedDB and syncs through Koofr like any other bro
 cd worker
 npm install
 # set secrets (never committed):
-npx wrangler secret put APP_API_KEY        # must equal frontend VITE_APP_API_KEY
+powershell -File scripts/rotate-token.ps1  # generates APP_API_KEY; each device then enters it
 npx wrangler secret put KOOFR_AUTH_HEADER  # "Basic " + base64(koofr-email:app-password)
 npx wrangler secret put GEMINI_API_KEY     # optional fallback brain
 # edit wrangler.toml: ALLOWED_ORIGIN (your Pages URL), KOOFR_DAV_BASE, paths

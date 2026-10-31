@@ -1,14 +1,43 @@
 // Thin fetch client to the Cloudflare Worker. Adds the X-App-Auth header.
-// All cloud access is optional: if VITE_WORKER_URL is unset the app runs
+// All cloud access is optional: with no Worker URL or access token the app runs
 // fully local (offline-first) and these calls are skipped by the sync layer.
+// The web page is public, so the token is never built in: each device enters its
+// own once, and it stays in that device's storage.
 
 const BASE = (import.meta.env.VITE_WORKER_URL || '').replace(/\/$/, '')
-const KEY = import.meta.env.VITE_APP_API_KEY || ''
+const TOKEN_KEY = 'campaign-dashboard.token'
 
-export const cloudEnabled = () => Boolean(BASE && KEY)
+export const canConnect = () => Boolean(BASE)
+
+export function getToken() {
+  try {
+    return localStorage.getItem(TOKEN_KEY) || ''
+  } catch {
+    return ''
+  }
+}
+
+export function setToken(token) {
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token)
+    else localStorage.removeItem(TOKEN_KEY)
+  } catch {
+    // Private mode: the app keeps working, just local-only.
+  }
+}
+
+export const cloudEnabled = () => Boolean(BASE && getToken())
 
 function headers(extra = {}) {
-  return { 'X-App-Auth': KEY, ...extra }
+  return { 'X-App-Auth': getToken(), ...extra }
+}
+
+// True if the Worker accepts this token, false if it refuses it. Throws if unreachable.
+export async function testToken(token) {
+  const res = await fetch(`${BASE}/api/sync`, { headers: { 'X-App-Auth': token } })
+  if (res.status === 401) return false
+  if (!res.ok) throw new Error(`sync failed: ${res.status}`)
+  return true
 }
 
 export async function fetchRemoteState() {
